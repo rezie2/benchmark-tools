@@ -5,6 +5,7 @@
 #include <pthread.h> 
 #include <error.h>
 #include <sched.h>
+#include <malloc.h>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -12,40 +13,56 @@
 
 #define rdtscll(val) \
   __asm__ __volatile__("rdtsc" : "=A" (val))
-#define unlikely(x)     __builtin_expect(!!(x), 0)
-#define ITR 500
-#define THRESHOLD 10
-unsigned long long irq_arr[ITR];
-unsigned long long time_arr[ITR];
+#define likely(x)     __builtin_expect(!!(x), 1)
+#define unlikely(x)   __builtin_expect(!!(x), 0)
+#define ITR 10000
+#define THRESHOLD 500
+//unsigned long long irq_arr[ITR];
+//unsigned long long time_arr[ITR];
 
 void *
 get_irqs(void *data)
 {
-  int i = 0;
+  unsigned long long i = 0, j = ITR - 2; // For ITR
   unsigned long long tsc, endtsc, lastirq = 0, interirq;
   
-  sleep(1);
-  rdtscll(tsc);
+  unsigned long long *irq_arr = malloc((ITR + 1) * sizeof(unsigned long long));
+  if(irq_arr == NULL) {
+    perror("irq_arr: ");
+    exit(-1);
+  }
+  unsigned long long *time_arr = malloc((ITR + 1) * sizeof(unsigned long long));
+  if(time_arr == NULL) {
+    perror("time_arr: ");
+    exit(-1);
+  }
 
-  // while(i < ITR) {
-  for(i = 0; i < ITR; i++) {
+  rdtscll(tsc); 
+  for(i = 0; i < ITR; ) {
     rdtscll(endtsc);
     if((endtsc - tsc) > THRESHOLD) {
-      if(unlikely(lastirq != 0)) {
+      if(likely(lastirq != 0)) {
 	interirq = tsc - lastirq;
 	irq_arr[i] = interirq;
       }
       lastirq = tsc;
       time_arr[i] = endtsc - tsc;
+      i++;
+    }
+
+    if(unlikely(i == j)) {
+      printf("newrep\n");
+      for(i = 0; i < ITR; i++) {
+	if(likely(time_arr[i] == 0 || irq_arr[i] == 0))
+	  continue;
+	printf("%llu %llu\n", time_arr[i], irq_arr[i]);
+      }
+      i = 0;
+      rdtscll(endtsc); // for making up for the print overhead
     }
     tsc = endtsc;
-    //i++;
   }
   
-  for(i = 0; i < ITR; i++) {
-    printf("Iteration %d: Cycles Duration(%llu) Time Between Last Event(%llu)\n", i, time_arr[i], irq_arr[i]);
-  }
-
   pthread_exit(NULL);
 }
 
@@ -65,7 +82,7 @@ main(int argc, char *argv[])
     perror("set rlimit: ");
     return -1;
   }
-  printf("CPU limit removed\n");
+  //printf("CPU limit removed\n");
 
   // Set up the irq logger and create a thread for it
   sp_irq.sched_priority = (sched_get_priority_max(SCHED_RR));
@@ -77,7 +94,7 @@ main(int argc, char *argv[])
       perror("pthread setsched irq: ");
       return -1;
   }
-  printf("irq priority: (%d)\n", sp_irq.sched_priority);
+  //printf("irq priority: (%d)\n", sp_irq.sched_priority);
   
   // Set up processor affinity for both threads
   CPU_ZERO(&mask);
@@ -86,7 +103,7 @@ main(int argc, char *argv[])
     perror("setaffinity irq error: ");
     return -1;
   }
-  printf("Set affinity for irq thread\n");
+  //printf("Set affinity for irq thread\n");
 
   pthread_join(tid_irq, &thd_ret);
 
