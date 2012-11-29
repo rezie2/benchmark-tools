@@ -17,15 +17,16 @@
 #define unlikely(x)   __builtin_expect(!!(x), 0)
 #define ITR 10000
 #define THRESHOLD 500
-//unsigned long long irq_arr[ITR];
-//unsigned long long time_arr[ITR];
+unsigned long long irq_arr[ITR];
+unsigned long long time_arr[ITR];
 
 void *
 get_irqs(void *data)
 {
-  unsigned long long i = 0, j = ITR - 2; // For ITR
+  //  int sucv = 0;
+  unsigned long long i = 0, j = ITR - 1; // For ITR
   unsigned long long tsc, endtsc, lastirq = 0, interirq;
-  
+  /*
   unsigned long long *irq_arr = malloc((ITR + 1) * sizeof(unsigned long long));
   if(irq_arr == NULL) {
     perror("irq_arr: ");
@@ -36,7 +37,7 @@ get_irqs(void *data)
     perror("time_arr: ");
     exit(-1);
   }
-
+  */
   rdtscll(tsc); 
   for(i = 0; i < ITR; ) {
     rdtscll(endtsc);
@@ -47,17 +48,19 @@ get_irqs(void *data)
       }
       lastirq = tsc;
       time_arr[i] = endtsc - tsc;
+      // add here b/c we'd waste a lot of iterations otherwise
       i++;
     }
-
+ 
     if(unlikely(i == j)) {
-      printf("newrep\n");
+      //printf("newrep\n");
       for(i = 0; i < ITR; i++) {
-	if(likely(time_arr[i] == 0 || irq_arr[i] == 0))
+       	if(likely(time_arr[i] == 0 || irq_arr[i] == 0))
 	  continue;
 	printf("%llu %llu\n", time_arr[i], irq_arr[i]);
       }
-      i = 0;
+      return; // this results in only 1 pass
+      //i = 0;
       rdtscll(endtsc); // for making up for the print overhead
     }
     tsc = endtsc;
