@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, getopt
 
 '''
 To get the PIDs, save them to a file when forking. 1 child PID per fork.
@@ -7,10 +7,10 @@ To get the PIDs, save them to a file when forking. 1 child PID per fork.
 
 cosactive = 0 # for testing with just linux or coslinux
 
-def config():
+def config(coscores, lincores):
 
-    cos_cpu = 6
-    linux_cpu = 7
+    cos_cpu = int(coscores)
+    linux_cpu = int(lincores) - 1
 
     # Setting up
     os.system("echo -1 > /proc/sys/kernel/sched_rt_runtime_us")
@@ -28,7 +28,7 @@ def config():
         os.system("echo 0 > /dev/cpuset/cos/cpuset.cpus")
 
     # Worker 1
-    if not(os.path.isdir("/dev/cpuset/worker1")""
+    if not(os.path.isdir("/dev/cpuset/worker1")):
         os.system("mkdir -p /dev/cpuset/worker1")
     os.system("echo 0-" + str(linux_cpu) + " > /dev/cpuset/worker1/cpuset.cpus")
 
@@ -37,7 +37,7 @@ def config():
     os.system("echo $WPID > /dev/cpuset/worker1/tasks")
 
 
-def main():
+def main(argv):
 
     try:
         opts, args = getopt.getopt(argv, 'c:l:', ["cos=", "linux="])
@@ -46,10 +46,11 @@ def main():
         sys.exit(2)
     for opt, arg in opts:
         if opt in ('-c', '--cos'):
-            iname = arg
+            coscores = arg
+        if opt in ('-l', '--linux'):
+            lincores = arg
 
-
-    filter(iname, maximum, minimum, multiple)
+    config(coscores, lincores)
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
