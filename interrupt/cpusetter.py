@@ -3,6 +3,9 @@ from os.path import expanduser
 
 '''
 Notes:
+
+MUST BE RUN UNDER ROOT!
+
 This setter requires some manual tweaking depending on the system you use it on.
 Currently it accepts via command line the number of cores to allocate to cos and Linux
 but it is not being used. Right now, the workers are manually allocated to cpusets with 
@@ -32,7 +35,7 @@ def config(coscores, lincores):
     if not(os.path.isfile("/dev/cpuset/cpuset.cpus")):
         os.system("mount -t cgroup -ocpuset cpuset /dev/cpuset")
     ## Ethernet affinity
-    os.system("echo c0 > /proc/irq/16/smp_affinity")
+#    os.system("echo c0 > /proc/irq/16/smp_affinity")
     
     # Composite
     if cosactive:    
@@ -46,26 +49,32 @@ def config(coscores, lincores):
         os.system("mkdir -p /dev/cpuset/worker1")
     #os.system("echo 0-" + str(linux_cpu) + " > /dev/cpuset/worker1/cpuset.cpus")
     os.system("echo 6-7 > /dev/cpuset/worker1/cpuset.cpus")
-
-    os.system("wget --output-document=/dev/null speedtest.qsc.de/10GB.qsc")
-    os.system("WPID=$(ps aux | grep '[s]peedtest' | awk -v WPID=$WPID '{ print $2 }')")
-    os.system("echo $WPID > /dev/cpuset/worker1/tasks")
+    os.system("echo 0 > /dev/cpuset/worker1/cpuset.mems")
+    os.system("wget -b --output-document=/dev/null speedtest.qsc.de/10GB.qsc")
+    #os.system("WPID=$(ps aux | grep '[s]peedtest' | awk -v WPID=$WPID '{ print $2 }'); echo $WPID $WPID $WPID ; echo $WPID > /dev/cpuset/worker1/tasks")
+    os.system("ps aux | grep '[s]peedtest' | awk '{ print $2 }' | tee -a /dev/cpuset/worker1/tasks")
 
     # Worker 2 - compile linux
-    print("Worker 2 executing...\n   ...cleaning kernel src tree")
+'''    print("Worker 2 executing...\n   ...cleaning kernel src tree")
     os.system("(cd /home/rezie/research/linux-2.6.36-b/; fakeroot make-kpkg clean)")
-
+ 
     if not(os.path.isdir("/dev/cpuset/worker2")):
         os.system("mkdir -p /dev/cpuset/worker2")
     os.system("echo 1-5 > /dev/cpuset/worker2/cpuset.cpus")
 
     homedir = expanduser("~")
-    os.system("(cd " + homedir + "/research/linux-2.6.36-b/; fakeroot make-kpkg --initrd --append-to-version=-b kernel-image kernel-headers)")
-    os.system("WPID=$(ps aux | grep '[s]peedtest' | awk -v WPID=$WPID '{ print $2 }'")
-    os.system("echo $WPID > /dev/cpuset/worker2/tasks")
+    os.system("(cd " + homedir + "/research/linux-2.6.36-b/; fakeroot make-kpkg --initrd --append-to-version=-b kernel-image kernel-headers &)")
+    os.system("WPID=$(ps aux | grep '[f]akeroot' | awk -v WPID=$WPID '{ print $2 }'; echo $WPID > /dev/cpuset/worker2/tasks")
+'''
 
 def setclean():
-    os.system()
+    # Cleaning up workers
+    os.system("WPID=$(ps aux | grep '[s]peedtest' | awk -v WPID=$WPID '{ print $2 }') ; if [ -n $WPID ]; then kill $WPID; fi")
+
+    #os.system("WPID=$(ps aux | grep '[f]akeroot' | awk -v WPID=$WPID '{ print $2 }' ; if [ -n $WPID ]; then kill $WPID; fi")
+
+    # Remove cpusets
+    #os.system("for i in `cat /dev/cpuset/`; do rmdir $i")
 
 def main(argv):
 
