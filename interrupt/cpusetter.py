@@ -8,9 +8,11 @@ MUST BE RUN UNDER ROOT!
 
 This setter requires some manual tweaking depending on the system you use it on.
 Currently it accepts via command line the number of cores to allocate to cos and Linux
-but it is not being used. Right now, the workers are manually allocated to cpusets with 
-the CPUs that should be used. This code also assumes you have a linux kernel named
-"linux-2.6.36-b" (b for benchmark) in your $HOME/research directory. 
+but it is not being used. To keep workers in line with a more realistic environment, 
+the cores they run on are left to be decided by Linux.
+
+This code also assumes you have a linux kernel named "linux-2.6.36-b" (b for benchmark) 
+in your $HOME/research directory. 
 
 The cosactive global will be used to test for configurations with just Linux or Linux/Cos.
 
@@ -45,27 +47,28 @@ def config(coscores, lincores):
         os.system("echo 0 > /dev/cpuset/cos/cpuset.cpus")
 
     # Worker 1 - wget a large file
+'''
     if not(os.path.isdir("/dev/cpuset/worker1")):
         os.system("mkdir -p /dev/cpuset/worker1")
     #os.system("echo 0-" + str(linux_cpu) + " > /dev/cpuset/worker1/cpuset.cpus")
     os.system("echo 6-7 > /dev/cpuset/worker1/cpuset.cpus")
     os.system("echo 0 > /dev/cpuset/worker1/cpuset.mems")
-
+'''
     os.system("wget -b --output-document=/dev/null speedtest.qsc.de/10GB.qsc")
     os.system("ps aux | grep '[s]peedtest' | awk '{ print $2 }' | tee -a /dev/cpuset/worker1/tasks")
 
     # Worker 2 - compile linux
     print("Worker 2 executing...\n   ...cleaning kernel src tree")
     os.system("(cd /home/rezie/research/linux-2.6.36-b/; fakeroot make-kpkg clean)")
- 
+''' 
     if not(os.path.isdir("/dev/cpuset/worker2")):
         os.system("mkdir -p /dev/cpuset/worker2")
     os.system("echo 1-5 > /dev/cpuset/worker2/cpuset.cpus")
     os.system("echo 1 > /dev/cpuset/worker2/cpuset.mems")
-
+'''
     homedir = expanduser("~")
     os.system("(cd " + homedir + "/research/linux-2.6.36-b/; fakeroot make-kpkg --initrd --append-to-version=-b kernel-image kernel-headers &)")
-    os.system("ps aux | grep '[f]akeroot' | awk '{ print $2 }' | tee -a /dev/cpuset/worker2/tasks")
+    #os.system("ps aux | grep '[f]akeroot' | awk '{ print $2 }' | tee -a /dev/cpuset/worker2/tasks")
 
 def setclean():
     # Cleaning up workers
